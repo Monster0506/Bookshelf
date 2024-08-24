@@ -9,6 +9,25 @@ document.addEventListener("DOMContentLoaded", () => {
   let archived = "true";
   const reads = document.getElementById("read");
   const addArticleForm = document.getElementById("addArticleForm");
+  const extractKeywords = (text) => {
+    const words = text.split(/\s+/).map((word) => word.toLowerCase());
+    const wordCounts = {};
+
+    for (const word of words) {
+      if (word.length > 9) {
+        // Filter out short words
+        wordCounts[word] = (wordCounts[word] || 0) + 1;
+      }
+    }
+
+    // Get the top 10 most frequent words
+    const sortedWords = Object.entries(wordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map((entry) => entry[0]);
+
+    return sortedWords;
+  };
   const populateDatalist = async () => {
     const response = await fetch("/api/articles", {
       method: "GET",
@@ -212,6 +231,54 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("articleSource").type = "text";
     }
   });
+  // document.getElementById("autogen").addEventListener("click", async () => {
+  //   const articleSource = document.getElementById("articleSource").value;
+  //   console.log(articleSource);
+  //
+  //   try {
+  //     // Step 1: Create a temporary article
+  //     const tempArticle = {
+  //       title: "Temporary Article",
+  //       source: articleSource,
+  //       fileType: "URL",
+  //       status: "unread",
+  //     };
+  //
+  //     const response = await fetch("/api/articles", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(tempArticle),
+  //     });
+  //
+  //     const newArticle = await response.json();
+  //     const articleId = newArticle.id;
+  //
+  //     // Step 2: Fetch readability information
+  //     const readabilityResponse = await fetch(
+  //       `/articles/${articleId}/readability`,
+  //     );
+  //     const readabilityData = await readabilityResponse.json();
+  //
+  //     // Extract title and keywords
+  //     const title = readabilityData.title || "No title found";
+  //     const content = readabilityData.content || "";
+  //     console.log("Extracted Title:", title);
+  //     console.log("Extracted Content:", content);
+  //     console.log("Extracted Keywords:", keywords);
+  //     document.getElementById("articleTitle").value = title;
+  //
+  //     // Step 3: Delete the temporary article
+  //     await fetch(`/api/articles/${articleId}`, {
+  //       method: "DELETE",
+  //     });
+  //
+  //     console.log("Temporary article deleted.");
+  //   } catch (error) {
+  //     console.error("Error during autogen process:", error);
+  //   }
+  // });
 
   loadArticles();
   // populateDatalist();

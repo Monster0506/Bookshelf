@@ -4,7 +4,9 @@ const readingTime = require("reading-time");
 const cheerio = require("cheerio");
 const bodyParser = require("body-parser");
 const pdf2html = require("pdf2html");
+const { JSDOM } = require("jsdom");
 const fs = require("node:fs");
+const { Readability } = require("@mozilla/readability");
 const path = require("node:path");
 const multer = require("multer");
 
@@ -166,17 +168,17 @@ app.get("/articles/:id/markdown", async (req, res) => {
   const articles = loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   let html;
-  if (article.markdown) {
+
+  const markdown = article.markdown;
+  if (markdown !== undefined) {
     html = article.markdown;
   } else if (article.source.endsWith(".pdf") || article.fileType === "PDF") {
     html = await pdf2html.html(article.source);
   } else {
-    const data = await fetch(
-      `https://urltomarkdown.herokuapp.com/?url=${article.source}`,
-    );
-    const markdown = await data.text();
-    html = markdownToHtml(markdown);
+    const readability = await getReadibility(article.source);
+    html = readability.content; // Extracts the main content of the article
   }
+
   article.markdown = html;
   articles[articles.findIndex((article) => article.id === req.params.id)] =
     article;
@@ -185,55 +187,21 @@ app.get("/articles/:id/markdown", async (req, res) => {
   res.send(html);
 });
 
-function markdownToHtml(input) {
-  let markdown = input;
-  // Convert headers
-  markdown = markdown.replace(/^### (.+)$/gm, "<h3>$1</h3>");
-  markdown = markdown.replace(/^## (.+)$/gm, "<h2>$1</h2>");
-  markdown = markdown.replace(/^# (.+)$/gm, "<h1>$1</h1>");
-  markdown = markdown.replace(/^\n*(.*?)\n[-]{3,}/gm, "<h2>$1</h2>"); // For h2
-  markdown = markdown.replace(/^\s*([-*]){3,}\s*$/gm, "<hr>");
+app.get("/articles/:id/readability", async (req, res) => {
+  const articles = loadArticles();
+  const article = articles.find((article) => article.id === req.params.id);
+  let readability;
+  if (article) {
+    let readability = await getReadibility(article.source);
+    res.json(readability);
+  }
+});
 
-  // Convert links
-  markdown = markdown.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1">',
-  );
-  markdown = markdown.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2">$1</a>',
-  );
-
-  // Convert bold text
-  markdown = markdown.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-  // Convert italic text
-  markdown = markdown.replace(/\_(.+?)\_/g, "<em>$1</em>");
-
-  // Other stuff
-  markdown = markdown.replace(
-    /```([^\n]*\n)?([\s\S]*?)```/g,
-    "<pre><code>$2</code></pre>",
-  );
-  markdown = markdown.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-  // Convert blockquotes
-  markdown = markdown.replace(/.*>\s*(.*)$/gm, "<blockquote>$1</blockquote>");
-
-  // Convert unordered lists
-  markdown = markdown.replace(/^\s*-\s+(.*)$/gm, "<ul>\n<li>$1</li>\n</ul>");
-  // markdown = markdown.replace(/<\/ul>\n<ul>/g, ""); // Merge consecutive <ul> tags
-  markdown = markdown.replace(
-    /^\s*\d+\.\s+(.*)$/gm,
-    "<ol>\n<li>$1</li>\n</ol>",
-  );
-  markdown = markdown.replace(/<\/ol>\n<ol>/g, ""); // Merge consecutive <ol> tags
-
-  // Convert new lines to <p> tags
-  markdown = markdown.replace(/\n\n/g, "</p><p>");
-  markdown = `<p>${markdown}</p>`;
-
-  return markdown;
+async function getReadibility(source) {
+  const { data } = await axios.get(source);
+  const doc = new JSDOM(data, { url: source });
+  const readability = new Readability(doc.window.document).parse();
+  return readability;
 }
 
 app.get("/favicon.ico", (req, res) => {
