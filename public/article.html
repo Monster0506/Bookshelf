@@ -32,6 +32,8 @@
         padding: 2rem;
         margin-top: 2rem;
         max-width: 99%;
+        margin-left: auto;
+        margin-right: auto;
       }
 
       .modal-content {
@@ -102,12 +104,40 @@
       #notesPanel h5 {
         margin-top: 0;
       }
-      /* Add this to your existing CSS */
+
       .no-select {
         user-select: none; /* Standard syntax */
         -webkit-user-select: none; /* Safari */
         -moz-user-select: none; /* Firefox */
         -ms-user-select: none; /* Internet Explorer/Edge */
+      }
+
+      /* Related Articles Section */
+      .related-articles {
+        margin-top: 2rem;
+      }
+
+      .related-article-card {
+        margin-bottom: 1rem;
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+      }
+
+      .related-article-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+      }
+
+      .related-article-title {
+        font-size: 1.125rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+      }
+
+      .related-article-description {
+        font-size: 0.875rem;
+        color: #6c757d;
       }
     </style>
   </head>
@@ -178,7 +208,7 @@
             Archive
           </button>
           <button id="plaintext" class="btn btn-sm btn-outline-primary me-2">
-            Open in Plain Text
+            Toggle Plain Text
           </button>
           <button
             id="addTag"
@@ -221,6 +251,10 @@
           </div>
         </div>
       </div>
+      <div class="related-articles">
+        <h3>Related Articles</h3>
+        <div class="row" id="related-articles-list"></div>
+      </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -237,10 +271,9 @@
       let startX;
       let startLeft;
 
-      // Get the elements
       const notesPanel = document.getElementById("notesPanel");
       const handle = document.getElementById("handle");
-      const body = document.body; // Reference to the body element
+      const body = document.body;
 
       handle.addEventListener("mousedown", (e) => {
         isDragging = true;
@@ -249,7 +282,6 @@
         startTop = parseInt(window.getComputedStyle(notesPanel).top, 10);
         startLeft = parseInt(window.getComputedStyle(notesPanel).left, 10);
 
-        // Add the no-select class to the body
         body.classList.add("no-select");
 
         document.addEventListener("mousemove", onMouseMove);
@@ -267,7 +299,7 @@
 
       function onMouseUp() {
         isDragging = false;
-        body.classList.remove("no-select"); // Remove the no-select class from the body
+        body.classList.remove("no-select");
 
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
