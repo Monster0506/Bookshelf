@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     alert("Article ID is missing");
     return;
   }
-  console.log(articleId);
 
   const response = await fetch(`/api/articles/${articleId}`);
   const article = await response.json();
@@ -91,7 +90,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!isPlaintext) {
       const data = await fetch(`/articles/${articleId}/markdown`);
       const html = await data.text();
-      console.log(html);
       embedParent.innerHTML = html;
       isPlaintext = true;
     } else {
@@ -138,12 +136,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       status: articleBody.status,
       tags: articleBody.tags || [],
       read: articleBody.read,
+      date: articleBody.date || new Date(),
     };
     const newTags = newArticle.tags;
     const splitTags = tagText.split(",");
     for (let i = 0; i < splitTags.length; i++) {
       splitTags[i] = splitTags[i].trim();
-      console.log(splitTags[i]);
       newTags.push(splitTags[i]);
     }
     newArticle.tags = newTags;
@@ -189,11 +187,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   async function generateDatalist() {
-    console.log("generating");
     const tags = await fetch("/api/articles/tags");
     const datalist = document.getElementById("options");
     const allTags = await tags.json();
-    console.log({ allTags: allTags });
 
     // for (const tag of allTags) {
     //   const option = document.createElement("option");
@@ -207,10 +203,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       const tags = await tagsResponse.json();
-      console.log("Tags fetched:", tags);
 
       const datalist = document.getElementById("options");
-      console.log(datalist);
       for (const tag of tags) {
         const option = document.createElement("option");
         option.value = tag;

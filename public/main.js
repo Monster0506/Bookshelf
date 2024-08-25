@@ -10,12 +10,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const reads = document.getElementById("read");
   const addArticleForm = document.getElementById("addArticleForm");
   const extractKeywords = (text) => {
-    const words = text.split(/\s+/).map((word) => word.toLowerCase());
-    const wordCounts = {};
+    // Remove HTML tags
+    const cleanText = text.replace(/<\/?[^>]+>/gi, "");
 
+    // Remove punctuation and split by whitespace
+    const words = cleanText
+      .replace(/[^\w\s]|_/g, "") // Remove punctuation
+      .split(/\s+/)
+      .map((word) => word.toLowerCase());
+
+    // Define a set of common stop words to exclude
+    const stopWords = new Set([
+      "because",
+      "however",
+      "whether",
+      "example",
+      "without",
+      "depends",
+      "overall",
+      "another",
+      "instead",
+    ]);
+
+    // Count word frequencies
+    const wordCounts = {};
     for (const word of words) {
-      if (word.length > 9) {
-        // Filter out short words
+      if (word.length > 6 && word.length < 12 && !stopWords.has(word)) {
         wordCounts[word] = (wordCounts[word] || 0) + 1;
       }
     }
@@ -23,11 +43,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Get the top 10 most frequent words
     const sortedWords = Object.entries(wordCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 5)
       .map((entry) => entry[0]);
 
     return sortedWords;
   };
+
   const populateDatalist = async () => {
     const response = await fetch("/api/articles", {
       method: "GET",
@@ -38,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
       option.value = article.title;
       datalist.appendChild(option);
     }
-    console.log("breaks here");
     populateDatalist2();
   };
   const populateDatalist2 = async () => {
@@ -48,7 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "Content-Type": "application/json",
       },
     });
-    console.log(allTags);
     setTimeout(async () => {
       const tags = await allTags.json();
       for (tag of tags) {
@@ -56,7 +75,6 @@ document.addEventListener("DOMContentLoaded", () => {
         option.value = tag;
         datalist.appendChild(option);
       }
-      console.log("Nope");
     }, 1000);
   };
   // Load articles on page load
@@ -113,12 +131,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const allTags = article.tags;
       if (allTags) {
         for (const tag of allTags) {
-          tags += `<span class="badge custom-badge bg-info text-dark me-1">${tag}</span>`;
+          tags += `<span class="badge custom-badge bg-info text-dark me-1">${
+            tag
+          }</span>`;
         }
       }
 
       articleCard.innerHTML = `
-      <div class="${articleClass} card custom-card shadow-sm border-light rounded">
+      <div class="${
+        articleClass
+      } card custom-card shadow-sm border-light rounded">
         <div class="card-body ">
           <h5 class="card-title">${article.title}</h5>
           <div class="badge-container mb-2">${tags}</div>
@@ -128,9 +150,13 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="badge-container mb-2">
             <span class="badge text-bg-primary">${article.fileType}</span>
             <span class="badge text-bg-secondary">${article.status}</span>
-            <span class="badge text-bg-success">${article.read ? article.read.text : "Unknown"}</span>
+            <span class="badge text-bg-success">${
+              article.read ? article.read.text : "Unknown"
+            }</span>
           </div>
-          <a href="/articles/${article.id}" class="btn btn-primary w-100">View</a>
+          <a href="/articles/${
+            article.id
+          }" class="btn btn-primary w-100">View</a>
         </div>
       </div>
     `;
@@ -147,7 +173,6 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       body: JSON.stringify(article),
     });
-    console.log(await newArticle.json());
     loadArticles();
   };
 
@@ -191,6 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let source = document.getElementById("articleSource").value;
     e.preventDefault();
     const formData = new FormData(e.target);
+    tags = document.getElementById("articleTags").value.split(",");
     if (articleFileType.value === "PDF" || articleFileType.value === "HTML") {
       formData.append(
         "articleSource",
@@ -200,10 +226,14 @@ document.addEventListener("DOMContentLoaded", () => {
         "fileType",
         document.getElementById("articleFileType").value,
       );
+      for (tag of tags) {
+        tag = tag.trim();
+      }
       formData.append("title", document.getElementById("articleTitle").value);
       const response = await fetch("/api/articles/upload", {
         method: "POST",
         body: formData,
+        file: formData.get("articleSource"),
       });
       const result = await response.json();
       source = `/uploads/${result.url}`;
@@ -216,6 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
       source: source,
       fileType: document.getElementById("articleFileType").value,
       status: "unread",
+      tags: tags,
     };
     await addArticle(newArticle);
     form.reset();
@@ -231,54 +262,49 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("articleSource").type = "text";
     }
   });
-  // document.getElementById("autogen").addEventListener("click", async () => {
-  //   const articleSource = document.getElementById("articleSource").value;
-  //   console.log(articleSource);
-  //
-  //   try {
-  //     // Step 1: Create a temporary article
-  //     const tempArticle = {
-  //       title: "Temporary Article",
-  //       source: articleSource,
-  //       fileType: "URL",
-  //       status: "unread",
-  //     };
-  //
-  //     const response = await fetch("/api/articles", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify(tempArticle),
-  //     });
-  //
-  //     const newArticle = await response.json();
-  //     const articleId = newArticle.id;
-  //
-  //     // Step 2: Fetch readability information
-  //     const readabilityResponse = await fetch(
-  //       `/articles/${articleId}/readability`,
-  //     );
-  //     const readabilityData = await readabilityResponse.json();
-  //
-  //     // Extract title and keywords
-  //     const title = readabilityData.title || "No title found";
-  //     const content = readabilityData.content || "";
-  //     console.log("Extracted Title:", title);
-  //     console.log("Extracted Content:", content);
-  //     console.log("Extracted Keywords:", keywords);
-  //     document.getElementById("articleTitle").value = title;
-  //
-  //     // Step 3: Delete the temporary article
-  //     await fetch(`/api/articles/${articleId}`, {
-  //       method: "DELETE",
-  //     });
-  //
-  //     console.log("Temporary article deleted.");
-  //   } catch (error) {
-  //     console.error("Error during autogen process:", error);
-  //   }
-  // });
+  document.getElementById("autogen").addEventListener("click", async () => {
+    const articleSource = document.getElementById("articleSource").value;
+
+    try {
+      const tempArticle = {
+        title: "Temporary Article",
+        source: articleSource,
+        fileType: "URL",
+        status: "unread",
+      };
+
+      const response = await fetch("/api/articles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(tempArticle),
+      });
+
+      const newArticle = await response.json();
+      const articleId = newArticle.id;
+
+      // Step 2: Fetch readability information
+      const readabilityResponse = await fetch(
+        `/articles/${articleId}/readability`,
+      );
+      const readabilityData = await readabilityResponse.json();
+
+      // Extract title and keywords
+      const title = readabilityData.title || "No title found";
+      const content = readabilityData.content || "";
+      const keywords = extractKeywords(content);
+      document.getElementById("articleTitle").value = title;
+      document.getElementById("articleTags").value = keywords.join(", ");
+
+      // Step 3: Delete the temporary article
+      await fetch(`/api/articles/${articleId}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.error("Error during autogen process:", error);
+    }
+  });
 
   loadArticles();
   // populateDatalist();

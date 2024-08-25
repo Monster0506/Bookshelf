@@ -4,8 +4,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "dev": "nodemon --env-file=.env server.js",
+    "start": "node server.js --env-file=.env"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@mozilla/readability": "^0.5.0",
+    "@supabase/supabase-js": "^2.45.2",
     "axios": "^1.7.4",
     "body-parser": "^1.20.2",
     "cheerio": "^1.0.0",
