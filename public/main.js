@@ -80,8 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load articles on page load
   const loadArticles = async () => {
     // const response = await fetch("/api/articles");
+    console.log("anything?");
     const response = await fetch(`/api/articles?sort=id&archived=${archived}`);
+    console.log(response);
     const articles = await response.json();
+    console.log("anything3?");
     renderArticles(articles);
   };
   reads.addEventListener("click", async () => {
