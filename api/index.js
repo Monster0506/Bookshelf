@@ -1,5 +1,5 @@
 const express = require("express");
-var summarize = require("super-sum");
+const summarize = require("super-sum");
 const axios = require("axios");
 const readingTime = require("reading-time");
 const cheerio = require("cheerio");
@@ -13,7 +13,7 @@ const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SUPABASE_URL = "https://bydfquuagkdbpkiarjwb.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -252,19 +252,23 @@ app.get("/articles/:id/readability", async (req, res) => {
 });
 
 app.get("/articles/:id/summary", async (req, res) => {
+  console.log("getting summary");
   const sentences = Number(req.query.sentences) || 10;
   const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   let summary = article.summary;
-  if (article.summary) {
+  if (article.summary && !article.summary) {
     summary = article.summary;
   } else {
+    console.log("here");
     let content = (await getReadability(article.source)).content;
     content = content.replace(/<\/?[^>]+>/gi, "");
+    console.log(content);
 
     const abstract = summarize({ corpus: content, nSentences: sentences });
     summary = abstract.sentences;
   }
+  console.log(summary);
   article.summary = summary;
   saveArticles(articles);
   res.json(summary);
