@@ -1,4 +1,5 @@
 const express = require("express");
+var summarize = require("super-sum");
 const axios = require("axios");
 const readingTime = require("reading-time");
 const cheerio = require("cheerio");
@@ -83,7 +84,7 @@ app.get("/api/articles", async (req, res) => {
         : a[sort].localeCompare(b[sort]),
     );
   } else {
-    articles.sort((b, a) => b.id - a.id);
+    articles.sort((b, a) => a.id - b.id);
   }
   if (archived === "true") {
     articles = articles.filter((article) => !article.archived);
@@ -115,17 +116,14 @@ app.post(
   },
 );
 
-async function getText(article) {
-  if (
-    article.source.startsWith("http://") ||
-    article.source.startsWith("https://")
-  ) {
-    const { data } = await axios.get(article.source);
+async function getText(source) {
+  if (source.startsWith("http://") || source.startsWith("https://")) {
+    const { data } = await axios.get(source);
     return cheerio.load(data)("body").text();
   } else {
     const { data, error } = await supabase.storage
       .from(UPLOAD_BUCKET)
-      .getPublicUrl(article.source);
+      .getPublicUrl(source);
     if (error) throw new Error("Could not retrieve article content.");
 
     const response = await fetch(data.publicUrl);
@@ -200,7 +198,7 @@ app.delete("/api/articles/:id", async (req, res) => {
 
 app.get("/articles/:id/markdown", async (req, res) => {
   try {
-    const { page = 1, pageSize = 10000 } = req.query;
+    const { page = 0, pageSize = 10000 } = req.query;
     const articles = await loadArticles();
     const article = articles.find((article) => article.id === req.params.id);
 
@@ -223,13 +221,22 @@ app.get("/articles/:id/markdown", async (req, res) => {
     article.markdown = html;
     saveArticles(articles);
 
-    const start = (page - 1) * pageSize;
-    res.json({
-      page: Number(page),
-      pageSize: Number(pageSize),
-      totalPages: Math.ceil(html.length / pageSize),
-      content: html.slice(start, start + pageSize),
-    });
+    if (page === 0) {
+      res.json({
+        page: 0,
+        pageSize: 0,
+        totalPages: 1,
+        content: html,
+      });
+    } else {
+      const start = (page - 1) * pageSize;
+      res.json({
+        page: Number(page),
+        pageSize: Number(pageSize),
+        totalPages: Math.ceil(html.length / pageSize),
+        content: html.slice(start, start + pageSize),
+      });
+    }
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).send("Internal Server Error");
@@ -242,6 +249,25 @@ app.get("/articles/:id/readability", async (req, res) => {
   article
     ? res.json(await getReadability(article.source))
     : res.status(404).json({ error: "Article not found" });
+});
+
+app.get("/articles/:id/summary", async (req, res) => {
+  const sentences = Number(req.query.sentences) || 10;
+  const articles = await loadArticles();
+  const article = articles.find((article) => article.id === req.params.id);
+  let summary = article.summary;
+  if (article.summary) {
+    summary = article.summary;
+  } else {
+    let content = (await getReadability(article.source)).content;
+    content = content.replace(/<\/?[^>]+>/gi, "");
+
+    const abstract = summarize({ corpus: content, nSentences: sentences });
+    summary = abstract.sentences;
+  }
+  article.summary = summary;
+  saveArticles(articles);
+  res.json(summary);
 });
 
 async function getReadability(source) {

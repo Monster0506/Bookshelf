@@ -54,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
       method: "GET",
     });
     const articles = await response.json();
-    console.log(articles);
     for (article of articles) {
       const option = document.createElement("option");
       option.value = article.title;

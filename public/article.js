@@ -10,8 +10,45 @@ document.addEventListener("DOMContentLoaded", async () => {
   const articleId = url[url.length - 1];
   let embed = document.getElementById("embed");
   const embedParent = embed.parentElement;
+  const hoverPreview = document.getElementById("hover-preview");
+  const previewContent = document.getElementById("preview-content");
+  const previewNotes = document.getElementById("preview-notes");
+  const summary = document.getElementById("summaryText");
   let isPlaintext = false;
   plaintext.style.display = "none";
+
+  function showPreview(event) {
+    const card = event.currentTarget;
+
+    // Fetch and display article content for the preview
+    const source = card.getAttribute("data-source");
+    previewContent.innerHTML = `<embed src="${source}" width="100%" height="100%"/>`;
+    previewNotes.innerHTML = card.getAttribute("data-description");
+    hoverPreview.style.display = "block";
+  }
+  function hidePreview() {
+    hoverPreview.style.display = "none";
+  }
+  function movePreview(event) {
+    const offsetX = -15; // Move to the left of the cursor
+    const offsetY = -15; // Move above the cursor
+    const previewWidth = hoverPreview.offsetWidth;
+    const previewHeight = hoverPreview.offsetHeight;
+
+    // Calculate position so that the preview appears above the cursor
+    const left = event.pageX + offsetX - previewWidth / 2;
+    const top = event.pageY + offsetY - previewHeight;
+
+    // Ensure the preview stays within the viewport (optional)
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    const finalLeft = Math.min(Math.max(0, left), windowWidth - previewWidth);
+    const finalTop = Math.min(Math.max(0, top), windowHeight - previewHeight);
+
+    hoverPreview.style.left = `${finalLeft}px`;
+    hoverPreview.style.top = `${finalTop}px`;
+  }
 
   if (!articleId) {
     alert("Article ID is missing");
@@ -46,6 +83,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   embed.is = "x-frame-bypass";
 
+  const summaryText = await fetch(`/articles/${articleId}/summary`);
+  const summaryTexts = await summaryText.json();
+  console.log(summaryTexts);
+
+  if (summaryTexts.length > 0) {
+    summary.innerHTML = summaryTexts.slice(0, 3).join(". ");
+  }
   archive.addEventListener("click", async () => {
     article.archived = !article.archived;
     status.textContent = article.archived ? "Archived" : article.status;
@@ -96,7 +140,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderTags(tags) {
     const tagList = document.getElementById("tags");
     tagList.innerHTML = "";
-    tags.forEach((tag) => {
+    for (const tag of tags) {
       const tagItem = document.createElement("span");
       tagItem.classList.add(
         "badge",
@@ -111,7 +155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       tagItem.textContent = `${tag} ×`;
       tagItem.addEventListener("click", () => removeTag(tag));
       tagList.appendChild(tagItem);
-    });
+    }
   }
 
   async function saveTags(articleId) {
@@ -175,7 +219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function displayPlaintext(articleId, embedParent) {
-    let currentPage = 1;
+    const currentPage = 1;
     const pageSize = 10000;
 
     const fetchPage = async (page) => {
@@ -273,35 +317,49 @@ document.addEventListener("DOMContentLoaded", async () => {
               "related-articles-list",
             );
             if (relatedArticlesList) {
+              // Display related articles
+              const relatedArticlesList = document.getElementById(
+                "related-articles-list",
+              );
               relatedArticlesList.innerHTML = relatedArticles
                 .map(
                   (article) => `
-              <div class="col-md-4">
-                <div class="card related-article-card">
-                  <div class="card-body">
-                    <h5 class="card-title related-article-title">${
-                      article.title
-                    }</h5>
-                    <p class="card-text related-article-description">${
-                      article.tags
-                    }</p>
-                    <a href="/articles/${
-                      article.id
-                    }" class="btn btn-primary">Read More</a>
-                  </div>
+            <div class="col-md-4">
+              <div class="card related-article-card" data-title="${
+                article.title
+              }" data-description="${
+                article.note || ""
+              }" data-link="/articles/${
+                article.id
+              }" data-source="${article.source}">
+                <div class="card-body">
+                  <h5 class="card-title related-article-title">${
+                    article.title
+                  }</h5>
+                  <p class="card-text related-article-description" id="article-source">${
+                    article.source
+                  }</p>
+                  <a href="/articles/${
+                    article.id
+                  }" class="btn btn-primary" id="card-id">Read More</a>
                 </div>
               </div>
-            `,
+            </div>
+          `,
                 )
                 .join("");
-            } else {
-              console.error(
-                "Element with ID 'related-articles-list' not found",
-              );
+
+              for (const card of document.querySelectorAll(
+                ".related-article-card",
+              )) {
+                // Handle hover preview
+                card.addEventListener("mouseenter", showPreview);
+                card.addEventListener("mouseleave", hidePreview);
+                card.addEventListener("mousemove", movePreview);
+              }
             }
           });
-      })
-      .catch((error) => console.error("Error fetching data:", error));
+      });
   }
   relatedArticles();
 });
