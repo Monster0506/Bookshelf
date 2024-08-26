@@ -17,7 +17,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.use(bodyParser.json());
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "../public")));
 
 const upload = multer({ storage: multer.memoryStorage() });
 const UPLOAD_BUCKET = "uploads";
@@ -54,11 +54,11 @@ function generateID() {
 
 // Routes
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(__dirname, "../public", "index.html"));
 });
 
 app.get("/articles/:id", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "article.html"));
+  res.sendFile(path.join(__dirname, "../public", "article.html"));
 });
 
 app.get("/uploads/:filename", async (req, res) => {
@@ -252,7 +252,7 @@ async function getReadability(source) {
 }
 
 app.get("/favicon.ico", (req, res) => {
-  res.sendFile(path.join(__dirname, "favicon.ico"));
+  res.sendFile(path.join(__dirname, "../", "favicon.ico"));
 });
 
 app.listen(PORT, () => {
