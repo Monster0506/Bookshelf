@@ -257,7 +257,7 @@ app.get("/articles/:id/summary", async (req, res) => {
   const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   let summary = article.summary;
-  if (article.summary && !article.summary) {
+  if (article.summary) {
     summary = article.summary;
   } else {
     console.log("here");
