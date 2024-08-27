@@ -18,7 +18,7 @@
       body {
         background-color: #f5f5f5;
         font-family: "Fira Mono";
-        padding-right: 20px; /* Add space for fixed panel */
+        padding-right: 20px;
       }
 
       .navbar {
@@ -53,13 +53,63 @@
         background-color: #6c757d;
         color: #ffffff;
       }
+      .page {
+        line-height: 2;
+        color: #333;
+        padding: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+        blockquote {
+          color: #6c757d;
+          border-left: 4px solid #6c757d;
+          background-color: #f8f9fa;
+          padding: 1rem 1.5rem;
+          margin: 1rem 0;
+          font-style: italic;
+          position: relative;
+          quotes: "“" "”" "‘" "’";
+        }
 
-      blockquote {
-        color: #6c757d;
-        border: 1px solid #6c757d;
-        background-color: #f8f9fa;
-        padding: 1rem;
-        margin: 0.5rem 0;
+        blockquote::before {
+          content: open-quote;
+          font-size: 4rem;
+          color: #e9ecef;
+          position: absolute;
+          left: 0rem;
+          top: 0;
+        }
+
+        blockquote::after {
+          content: close-quote;
+          font-size: 4rem;
+          color: #e9ecef;
+          position: absolute;
+          right: 0rem;
+          bottom: 0;
+        }
+        code {
+          background-color: #f1f1f1;
+          border-radius: 8px;
+          padding: 0.2rem 0.4rem;
+          font-family: "Courier New", Courier, monospace;
+          color: #d63384;
+        }
+
+        pre {
+          background-color: #f1f1f1;
+          border-radius: 4px;
+          padding: 1rem;
+          overflow-x: auto;
+          font-family: "Courier New", Courier, monospace;
+          color: #d63384;
+          margin: 1rem 0;
+        }
+        img {
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 1rem 0;
+        }
       }
 
       .badge {
@@ -78,7 +128,7 @@
       .embed-responsive {
         position: relative;
         overflow: hidden;
-        padding-top: 56.25%; /* 16:9 aspect ratio */
+        padding-top: 56.25%;
       }
 
       .embed-responsive-item {
@@ -90,7 +140,7 @@
 
       #notesPanel {
         position: fixed;
-        top: 30%; /* Adjust as needed */
+        top: 30%;
         right: 3%;
         max-width: 30%;
         background-color: #ffffff;
@@ -98,7 +148,7 @@
         border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         padding: 15px;
-        z-index: 1000; /* Ensure it stays above other elements */
+        z-index: 1000;
       }
 
       #notesPanel h5 {
@@ -106,13 +156,12 @@
       }
 
       .no-select {
-        user-select: none; /* Standard syntax */
-        -webkit-user-select: none; /* Safari */
-        -moz-user-select: none; /* Firefox */
-        -ms-user-select: none; /* Internet Explorer/Edge */
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
       }
 
-      /* Related Articles Section */
       .related-articles {
         margin-top: 2rem;
       }
@@ -169,18 +218,19 @@
       .hover-preview .btn {
         font-size: 0.875rem;
       }
+
       .summary-box {
-        background-color: #e9ecef; /* Light gray background */
-        border: 1px solid #ced4da; /* Border similar to form controls */
-        border-radius: 0.375rem; /* Slightly rounded corners */
-        padding: 1rem; /* Spacing inside the box */
-        margin-bottom: 2rem; /* Space below the box */
+        background-color: #e9ecef;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 2rem;
       }
 
       .summary-box p {
-        margin: 0; /* Remove default margin */
-        font-size: 1rem; /* Ensure the text is readable */
-        color: #495057; /* Dark gray text color */
+        margin: 0;
+        font-size: 1rem;
+        color: #495057;
       }
     </style>
   </head>

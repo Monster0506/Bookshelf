@@ -230,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const displayContent = (htmlContent, page, totalPages) => {
-      embedParent.innerHTML = htmlContent;
+      embedParent.innerHTML = `<div class="page">${htmlContent}`;
       if (totalPages > 1) {
         const paginationControls = createPaginationControls(
           page,
