@@ -20,7 +20,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   function showPreview(event) {
     const card = event.currentTarget;
 
-    // Fetch and display article content for the preview
     console.log("Hovering");
     const source = card.getAttribute("data-source");
     previewContent.innerHTML = `<embed src="${source}" width="100%" height="100%"/>`;
@@ -32,17 +31,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function movePreview(event) {
     const offsetX = 0;
-    const offsetY = 30;
     const previewWidth = hoverPreview.offsetWidth;
     const previewHeight = hoverPreview.offsetHeight;
 
-    // Calculate position so that the preview appears above the cursor
     const left = event.pageX + offsetX - previewWidth / 2;
     const top = event.pageY - 30;
 
-    // Ensure the preview stays within the viewport (optional)
     const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
 
     const finalLeft = Math.min(Math.max(0, left), windowWidth - previewWidth);
     const finalTop = top - previewHeight - 3;
@@ -263,26 +258,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     fetchPage,
     displayContent,
   ) {
-    const paginationControls = document.createElement("div");
-    paginationControls.classList.add("pagination-controls");
+    const paginationControls = document.createElement("ul");
+    paginationControls.classList.add("pagination");
 
-    const prevButton = document.createElement("button");
+    // Previous Button
+    const prevButtonList = document.createElement("li");
+    prevButtonList.classList.add("page-item");
+    const prevButton = document.createElement("a");
+    prevButton.classList.add("page-link");
     prevButton.innerText = "Previous";
     prevButton.disabled = page <= 1;
-    prevButton.addEventListener("click", async () => {
-      const data = await fetchPage(--page);
+    prevButton.onclick = async () => {
+      const data = await fetchPage(page - 1);
       displayContent(data.content, data.page, data.totalPages);
-    });
-    paginationControls.appendChild(prevButton);
+    };
+    prevButtonList.appendChild(prevButton);
+    paginationControls.appendChild(prevButtonList);
 
-    const nextButton = document.createElement("button");
+    // Page Numbers
+    for (let i = 1; i <= totalPages; i++) {
+      const pageItemList = document.createElement("li");
+      pageItemList.classList.add("page-item");
+      const pageLink = document.createElement("a");
+      pageLink.classList.add("page-link");
+      pageLink.innerText = i;
+      pageLink.onclick = async () => {
+        const data = await fetchPage(i);
+        displayContent(data.content, data.page, data.totalPages);
+      };
+      if (i === page) {
+        pageItemList.classList.add("active");
+      }
+      pageItemList.appendChild(pageLink);
+      paginationControls.appendChild(pageItemList);
+    }
+
+    // Next Button
+    const nextButtonList = document.createElement("li");
+    nextButtonList.classList.add("page-item");
+    const nextButton = document.createElement("a");
+    nextButton.classList.add("page-link");
     nextButton.innerText = "Next";
     nextButton.disabled = page >= totalPages;
-    nextButton.addEventListener("click", async () => {
-      const data = await fetchPage(++page);
+    nextButton.onclick = async () => {
+      const data = await fetchPage(page + 1);
       displayContent(data.content, data.page, data.totalPages);
-    });
-    paginationControls.appendChild(nextButton);
+    };
+    nextButtonList.appendChild(nextButton);
+    paginationControls.appendChild(nextButtonList);
 
     return paginationControls;
   }
@@ -291,74 +314,58 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentArticleId = articleId;
     fetch("/api/articles/tags")
       .then((response) => response.json())
-      .then((tags) => {
-        return fetch("/api/articles/")
-          .then((response) => response.json())
-          .then((articles) => {
-            const currentArticleTags = tagsAll;
-            if (!Array.isArray(currentArticleTags)) {
-              console.error("Current article tags are not valid");
-              return;
-            }
+      .then(async (_) => {
+        const response = await fetch("/api/articles/");
+        const articles = await response.json();
+        const currentArticleTags = tagsAll;
+        if (!Array.isArray(currentArticleTags)) {
+          console.error("Current article tags are not valid");
+          return;
+        }
+        const relatedArticles = articles.filter((article) => {
+          if (!article.tags || !Array.isArray(article.tags)) {
+            return false;
+          }
 
-            const relatedArticles = articles.filter((article) => {
-              if (!article.tags || !Array.isArray(article.tags)) {
-                return false;
-              }
-
-              return (
-                article.tags.some((tag) => currentArticleTags.includes(tag)) &&
-                article.id !== currentArticleId
-              );
-            });
-
-            // Display related articles
-            const relatedArticlesList = document.getElementById(
-              "related-articles-list",
-            );
-            if (relatedArticlesList) {
-              // Display related articles
-              const relatedArticlesList = document.getElementById(
-                "related-articles-list",
-              );
-              relatedArticlesList.innerHTML = relatedArticles
-                .map(
-                  (article) => `
+          return (
+            article.tags.some((tag) => currentArticleTags.includes(tag)) &&
+            article.id !== currentArticleId
+          );
+        });
+        // Display related articles
+        const relatedArticlesList = document.getElementById(
+          "related-articles-list",
+        );
+        if (relatedArticlesList) {
+          // Display related articles
+          const relatedArticlesList_1 = document.getElementById(
+            "related-articles-list",
+          );
+          relatedArticlesList_1.innerHTML = relatedArticles
+            .map(
+              (article_1) => `
             <div class="col-md-4">
-              <div class="card related-article-card" data-title="${
-                article.title
-              }" data-description="${
-                article.note || ""
-              }" data-link="/articles/${
-                article.id
-              }" data-source="${article.source}">
+              <div class="card related-article-card" data-title="${article_1.title}" data-description="${article_1.note || ""}" data-link="/articles/${article_1.id}" data-source="${article_1.source}">
                 <div class="card-body">
-                  <h5 class="card-title related-article-title">${
-                    article.title
-                  }</h5>
-                  <p class="card-text related-article-description" id="article-source">${
-                    article.tags
-                  }</p>
-                  <a href="/articles/${
-                    article.id
-                  }" class="btn btn-primary" id="card-id">Read More</a>
+                  <h5 class="card-title related-article-title">${article_1.title}</h5>
+                  <p class="card-text related-article-description" id="article-source">${article_1.tags}</p>
+                  <a href="/articles/${article_1.id}" class="btn btn-primary" id="card-id">Read More</a>
                 </div>
               </div>
             </div>
           `,
-                )
-                .join("");
+            )
+            .join("");
 
-              for (const card of document.querySelectorAll(
-                ".related-article-card",
-              )) {
-                // Handle hover preview
-                card.addEventListener("mouseenter", showPreview);
-                card.addEventListener("mouseleave", hidePreview);
-                card.addEventListener("mousemove", movePreview);
-              }
-            }
-          });
+          for (const card of document.querySelectorAll(
+            ".related-article-card",
+          )) {
+            // Handle hover preview
+            card.addEventListener("mouseenter", showPreview);
+            card.addEventListener("mouseleave", hidePreview);
+            card.addEventListener("mousemove", movePreview);
+          }
+        }
       });
   }
   relatedArticles();

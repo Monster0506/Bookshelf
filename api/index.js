@@ -120,15 +120,14 @@ async function getText(source) {
   if (source.startsWith("http://") || source.startsWith("https://")) {
     const { data } = await axios.get(source);
     return cheerio.load(data)("body").text();
-  } else {
-    const { data, error } = await supabase.storage
-      .from(UPLOAD_BUCKET)
-      .getPublicUrl(source);
-    if (error) throw new Error("Could not retrieve article content.");
-
-    const response = await fetch(data.publicUrl);
-    return (await response.blob()).text();
   }
+  const { data, error } = supabase.storage
+    .from(UPLOAD_BUCKET)
+    .getPublicUrl(source);
+  if (error) throw new Error("Could not retrieve article content.");
+
+  const response = await fetch(data.publicUrl);
+  return (await response.blob()).text();
 }
 
 app.post("/api/articles", async (req, res) => {
@@ -198,7 +197,8 @@ app.delete("/api/articles/:id", async (req, res) => {
 
 app.get("/articles/:id/markdown", async (req, res) => {
   try {
-    const { page = 0, pageSize = 10000 } = req.query;
+    // Parse page and pageSize from query parameters, defaulting to 1 and 10000 respectively
+    const { page = 1, pageSize = 10000 } = req.query;
     const articles = await loadArticles();
     const article = articles.find((article) => article.id === req.params.id);
 
@@ -221,22 +221,22 @@ app.get("/articles/:id/markdown", async (req, res) => {
     article.markdown = html;
     saveArticles(articles);
 
-    if (page === 0) {
-      res.json({
-        page: 0,
-        pageSize: 0,
-        totalPages: 1,
-        content: html,
-      });
-    } else {
-      const start = (page - 1) * pageSize;
-      res.json({
-        page: Number(page),
-        pageSize: Number(pageSize),
-        totalPages: Math.ceil(html.length / pageSize),
-        content: html.slice(start, start + pageSize),
-      });
-    }
+    const currentPage = Number(page);
+    const currentPageSize = Number(pageSize);
+
+    // Calculate pagination
+    const totalLength = html.length;
+    const totalPages = Math.ceil(totalLength / currentPageSize);
+    const start = (currentPage - 1) * currentPageSize;
+    const end = Math.min(start + currentPageSize, totalLength);
+
+    // Return paginated result
+    res.json({
+      page: currentPage,
+      pageSize: currentPageSize,
+      totalPages: totalPages,
+      content: html.slice(start, end),
+    });
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).send("Internal Server Error");
