@@ -17,7 +17,7 @@
     <style>
       body {
         background-color: #f5f5f5;
-        font-family: "Fira Mono";
+        font-family: "Fira Mono", monospace;
         padding-right: 20px;
       }
 
@@ -53,12 +53,14 @@
         background-color: #6c757d;
         color: #ffffff;
       }
+
       .page {
         line-height: 2;
         color: #333;
         padding: 2rem;
         max-width: 800px;
         margin: 0 auto;
+
         blockquote {
           color: #6c757d;
           border-left: 4px solid #6c757d;
@@ -75,7 +77,7 @@
           font-size: 4rem;
           color: #e9ecef;
           position: absolute;
-          left: 0rem;
+          left: 0;
           top: 0;
         }
 
@@ -84,9 +86,10 @@
           font-size: 4rem;
           color: #e9ecef;
           position: absolute;
-          right: 0rem;
+          right: 0;
           bottom: 0;
         }
+
         code {
           background-color: #f1f1f1;
           border-radius: 8px;
@@ -104,6 +107,7 @@
           color: #d63384;
           margin: 1rem 0;
         }
+
         img {
           max-width: 100%;
           height: auto;
@@ -111,7 +115,6 @@
           margin: 1rem 0;
         }
       }
-
       .badge {
         font-size: 0.875rem;
       }
@@ -119,10 +122,6 @@
       .col {
         display: flex;
         flex-direction: column;
-      }
-
-      .form-control {
-        height: auto;
       }
 
       .embed-responsive {
@@ -142,7 +141,7 @@
         position: fixed;
         top: 30%;
         right: 3%;
-        max-width: 30%;
+        max-width: 60%;
         background-color: #ffffff;
         border: 1px solid #ddd;
         border-radius: 8px;
@@ -188,6 +187,7 @@
         font-size: 0.875rem;
         color: #6c757d;
       }
+
       .hover-preview {
         position: absolute;
         display: none;
@@ -284,12 +284,14 @@
         </div>
       </div>
     </div>
+
     <nav class="navbar navbar-light bg-light">
       <a class="navbar-brand mx-3" href="/">Bookshelf</a>
     </nav>
+
     <div class="container my-4">
       <h2 id="title"></h2>
-      <div class="summary-box p-3 mb-4 bg-light border rounded">
+      <div class="summary-box bg-light border rounded">
         <p id="summaryText">...</p>
       </div>
 
@@ -319,6 +321,7 @@
         <div id="reading" class="my-3 badge bg-success"></div>
         <div id="tags" class="my-3 d-flex flex-wrap"></div>
       </div>
+
       <div class="row">
         <div class="col-md-8">
           <div class="embed-responsive">
@@ -331,7 +334,7 @@
           </div>
         </div>
         <div class="col-md-4">
-          <div class="container" id="notesPanel">
+          <div id="notesPanel">
             <div
               id="handle"
               style="
@@ -348,10 +351,12 @@
           </div>
         </div>
       </div>
+
       <div class="related-articles">
         <h3>Related Articles</h3>
         <div class="row" id="related-articles-list"></div>
       </div>
+
       <div id="hover-preview" class="hover-preview">
         <div class="hover-content">
           <p id="preview-notes"></p>
@@ -369,10 +374,7 @@
     <script src="/article.js"></script>
     <script>
       let isDragging = false;
-      let startY;
-      let startTop;
-      let startX;
-      let startLeft;
+      let startY, startX, startTop, startLeft;
 
       const notesPanel = document.getElementById("notesPanel");
       const handle = document.getElementById("handle");
@@ -393,17 +395,14 @@
 
       function onMouseMove(e) {
         if (isDragging) {
-          const offsetY = e.clientY - startY;
-          const offsetX = e.clientX - startX;
-          notesPanel.style.top = `${startTop + offsetY}px`;
-          notesPanel.style.left = `${startLeft + offsetX}px`;
+          notesPanel.style.top = `${startTop + (e.clientY - startY)}px`;
+          notesPanel.style.left = `${startLeft + (e.clientX - startX)}px`;
         }
       }
 
       function onMouseUp() {
         isDragging = false;
         body.classList.remove("no-select");
-
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
       }
