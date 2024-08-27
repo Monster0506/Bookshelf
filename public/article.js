@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const card = event.currentTarget;
 
     // Fetch and display article content for the preview
+    console.log("Hovering");
     const source = card.getAttribute("data-source");
     previewContent.innerHTML = `<embed src="${source}" width="100%" height="100%"/>`;
     previewNotes.innerHTML = card.getAttribute("data-description");
@@ -85,7 +86,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const summaryText = await fetch(`/articles/${articleId}/summary`);
   const summaryTexts = await summaryText.json();
-  console.log(summaryTexts);
 
   if (summaryTexts.length > 0) {
     summary.innerHTML = summaryTexts.slice(0, 3).join(". ");
