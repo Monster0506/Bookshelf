@@ -31,21 +31,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     hoverPreview.style.display = "none";
   }
   function movePreview(event) {
-    const offsetX = -15; // Move to the left of the cursor
-    const offsetY = -15; // Move above the cursor
+    const offsetX = 0;
+    const offsetY = 30;
     const previewWidth = hoverPreview.offsetWidth;
     const previewHeight = hoverPreview.offsetHeight;
 
     // Calculate position so that the preview appears above the cursor
     const left = event.pageX + offsetX - previewWidth / 2;
-    const top = event.pageY + offsetY - previewHeight;
+    const top = event.pageY - 30;
 
     // Ensure the preview stays within the viewport (optional)
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
     const finalLeft = Math.min(Math.max(0, left), windowWidth - previewWidth);
-    const finalTop = Math.min(Math.max(0, top), windowHeight - previewHeight);
+    const finalTop = top - previewHeight - 3;
 
     hoverPreview.style.left = `${finalLeft}px`;
     hoverPreview.style.top = `${finalTop}px`;
@@ -337,7 +337,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     article.title
                   }</h5>
                   <p class="card-text related-article-description" id="article-source">${
-                    article.source
+                    article.tags
                   }</p>
                   <a href="/articles/${
                     article.id
