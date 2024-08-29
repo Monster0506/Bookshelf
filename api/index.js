@@ -138,7 +138,7 @@ app.post("/api/articles", async (req, res) => {
     date: new Date().toISOString(),
   };
 
-  newArticle.read = readingTime(await getText(newArticle));
+  newArticle.read = readingTime(await getText(newArticle.source));
   articles.push(newArticle);
   saveArticles(articles);
 
