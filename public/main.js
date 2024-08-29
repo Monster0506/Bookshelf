@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
       method: "GET",
     });
     const articles = await response.json();
-    for (article of articles) {
+    for (const article of articles) {
       const option = document.createElement("option");
       option.value = article.title;
       datalist.appendChild(option);
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     setTimeout(async () => {
       const tags = await allTags.json();
-      for (tag of tags) {
+      for (const tag of tags) {
         const option = document.createElement("option");
         option.value = tag;
         datalist.appendChild(option);
@@ -130,16 +130,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const allTags = article.tags;
       if (allTags) {
         for (const tag of allTags) {
-          tags += `<span class="badge custom-badge bg-info text-dark me-1">${
-            tag
-          }</span>`;
+          tags += `<span class="badge custom-badge bg-info text-dark me-1">${tag}</span>`;
         }
       }
 
       articleCard.innerHTML = `
-      <div class="${
-        articleClass
-      } card custom-card shadow-sm border-light rounded">
+      <div class="${articleClass} card custom-card shadow-sm border-light rounded">
         <div class="card-body ">
           <h5 class="card-title">${article.title}</h5>
           <div class="badge-container mb-2">${tags}</div>
@@ -153,9 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
               article.read ? article.read.text : "Unknown"
             }</span>
           </div>
-          <a href="/articles/${
-            article.id
-          }" class="btn btn-primary w-100">View</a>
+          <a href="/articles/${article.id}" class="btn btn-primary w-100">View</a>
         </div>
       </div>
     `;
@@ -165,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Add a new article
   const addArticle = async (article) => {
-    const newArticle = await fetch("/api/articles", {
+    await fetch("/api/articles", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
