@@ -345,11 +345,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             .map(
               (article_1) => `
             <div class="col-md-4">
-              <div class="card related-article-card" data-title="${article_1.title}" data-description="${article_1.note || ""}" data-link="/articles/${article_1.id}" data-source="${article_1.source}">
+              <div class="card related-article-card" data-title="${
+                article_1.title
+              }" data-description="${
+                article_1.note || ""
+              }" data-link="/articles/${
+                article_1.id
+              }" data-source="${article_1.source}">
                 <div class="card-body">
-                  <h5 class="card-title related-article-title">${article_1.title}</h5>
-                  <p class="card-text related-article-description" id="article-source">${article_1.tags}</p>
-                  <a href="/articles/${article_1.id}" class="btn btn-primary" id="card-id">Read More</a>
+                  <h5 class="card-title related-article-title">${
+                    article_1.title
+                  }</h5>
+                  <p class="card-text related-article-description" id="article-source">${
+                    article_1.tags
+                  }</p>
+                  <a href="/articles/${
+                    article_1.id
+                  }" class="btn btn-primary" id="card-id">Read More</a>
                 </div>
               </div>
             </div>

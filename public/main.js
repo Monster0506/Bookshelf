@@ -1,88 +1,166 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const articleGrid = document.getElementById("articleGrid");
-  const searchBar = document.getElementById("searchBar");
-  const fileTypes = document.getElementById("filetype");
-  const datalist = document.getElementById("options");
-  const archive = document.getElementById("archived");
-  let invertFile = "";
-  let invertReads = "false";
-  let archived = "true";
-  const reads = document.getElementById("read");
-  const addArticleForm = document.getElementById("addArticleForm");
-  const extractKeywords = (text) => {
-    // Remove HTML tags
-    const cleanText = text.replace(/<\/?[^>]+>/gi, "");
+const articleGrid = document.getElementById("articleGrid");
+const searchBar = document.getElementById("searchBar");
+const fileTypes = document.getElementById("filetype");
+const datalist = document.getElementById("options");
+const archive = document.getElementById("archived");
+let invertFile = "";
+let invertReads = "false";
+let archived = "true";
+const reads = document.getElementById("read");
+const addArticleForm = document.getElementById("addArticleForm");
+const addArticle = async (article) => {
+  await fetch("/api/articles", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(article),
+  });
+  loadArticles();
+};
 
-    // Remove punctuation and split by whitespace
-    const words = cleanText
-      .replace(/[^\w\s]|_/g, "") // Remove punctuation
-      .split(/\s+/)
-      .map((word) => word.toLowerCase());
+async function getArticleInfo(url) {
+  try {
+    // Step 1: Fetch readability information
+    const response = await fetch(
+      `/api/articles/readability?source=${encodeURIComponent(url)}`,
+    );
+    const readabilityData = await response.json();
 
-    // Define a set of common stop words to exclude
-    const stopWords = new Set([
-      "because",
-      "however",
-      "whether",
-      "example",
-      "without",
-      "depends",
-      "overall",
-      "another",
-      "instead",
-    ]);
+    // Extract title and keywords
+    const title = readabilityData.title || "No title found";
+    const content = readabilityData.content || "";
+    const keywords = extractKeywords(content);
 
-    // Count word frequencies
-    const wordCounts = {};
-    for (const word of words) {
-      if (word.length > 6 && word.length < 12 && !stopWords.has(word)) {
-        wordCounts[word] = (wordCounts[word] || 0) + 1;
-      }
-    }
-
-    // Get the top 10 most frequent words
-    const sortedWords = Object.entries(wordCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map((entry) => entry[0]);
-
-    return sortedWords;
-  };
-
-  const populateDatalist = async () => {
-    const response = await fetch("/api/articles", {
-      method: "GET",
-    });
-    const articles = await response.json();
-    for (const article of articles) {
+    // Update the UI elements
+    document.getElementById("articleTitle").value = title;
+    document.getElementById("articleTags").value = keywords.join(", ");
+  } catch (error) {
+    console.error("Error during article info generation:", error);
+  }
+}
+const loadArticles = async () => {
+  const response = await fetch(`/api/articles?sort=id&archived=${archived}`);
+  const articles = await response.json();
+  console.log("Should have loaded sucessfully.");
+  renderArticles(articles);
+};
+const populateDatalist = async () => {
+  const response = await fetch("/api/articles", {
+    method: "GET",
+  });
+  const articles = await response.json();
+  for (const article of articles) {
+    const option = document.createElement("option");
+    option.value = article.title;
+    datalist.appendChild(option);
+  }
+  populateDatalist2();
+};
+const populateDatalist2 = async () => {
+  const allTags = await fetch("/api/articles/tags", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  setTimeout(async () => {
+    const tags = await allTags.json();
+    for (const tag of tags) {
       const option = document.createElement("option");
-      option.value = article.title;
+      option.value = tag;
       datalist.appendChild(option);
     }
-    populateDatalist2();
-  };
-  const populateDatalist2 = async () => {
-    const allTags = await fetch("/api/articles/tags", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    setTimeout(async () => {
-      const tags = await allTags.json();
-      for (const tag of tags) {
-        const option = document.createElement("option");
-        option.value = tag;
-        datalist.appendChild(option);
+  }, 1000);
+};
+const extractKeywords = (text) => {
+  // Remove HTML tags
+  const cleanText = text.replace(/<\/?[^>]+>/gi, "");
+
+  // Remove punctuation and split by whitespace
+  const words = cleanText
+    .replace(/[^\w\s]|_/g, "") // Remove punctuation
+    .split(/\s+/)
+    .map((word) => word.toLowerCase());
+
+  // Define a set of common stop words to exclude
+  const stopWords = new Set([
+    "because",
+    "however",
+    "whether",
+    "example",
+    "without",
+    "depends",
+    "overall",
+    "another",
+    "instead",
+  ]);
+
+  // Count word frequencies
+  const wordCounts = {};
+  for (const word of words) {
+    if (word.length > 6 && word.length < 12 && !stopWords.has(word)) {
+      wordCounts[word] = (wordCounts[word] || 0) + 1;
+    }
+  }
+
+  // Get the top 10 most frequent words
+  const sortedWords = Object.entries(wordCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map((entry) => entry[0]);
+
+  return sortedWords;
+};
+const renderArticles = (articles) => {
+  articleGrid.innerHTML = "";
+  for (const article of articles) {
+    let articleClass = "unread";
+    if (article.fileType !== "URL") {
+      article.source = article.source.slice(29);
+    } else {
+      article.source = article.source.slice(8);
+    }
+    if (article.status === "read") {
+      articleClass = "read";
+    }
+    if (article.archived) {
+      article.status = `archived/${article.status}`;
+    }
+    const articleCard = document.createElement("div");
+    articleCard.className = "col-lg-4 col-md-6 mb-4";
+
+    let tags = "";
+    const allTags = article.tags;
+    if (allTags) {
+      for (const tag of allTags) {
+        tags += `<span class="badge custom-badge bg-info text-dark me-1">${tag}</span>`;
       }
-    }, 1000);
-  };
-  const loadArticles = async () => {
-    const response = await fetch(`/api/articles?sort=id&archived=${archived}`);
-    const articles = await response.json();
-    console.log("Should have loaded sucessfully.");
-    renderArticles(articles);
-  };
+    }
+
+    articleCard.innerHTML = `
+      <div class="${articleClass} card custom-card shadow-sm border-light rounded">
+        <div class="card-body ">
+          <h5 class="card-title">${article.title}</h5>
+          <div class="badge-container mb-2">${tags}</div>
+          <p class="card-text text-truncate" title="${article.source}">
+            ${article.source}
+          </p>
+          <div class="badge-container mb-2">
+            <span class="badge text-bg-primary">${article.fileType}</span>
+            <span class="badge text-bg-secondary">${article.status}</span>
+            <span class="badge text-bg-success">${
+              article.read ? article.read.text : "Unknown"
+            }</span>
+          </div>
+          <a href="/articles/${article.id}" class="btn btn-primary w-100">View</a>
+        </div>
+      </div>
+    `;
+    articleGrid.appendChild(articleCard);
+  }
+};
+document.addEventListener("DOMContentLoaded", () => {
   reads.addEventListener("click", async () => {
     invertReads = invertReads === "true" ? "false" : "true";
     const type = "status";
@@ -158,17 +236,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Add a new article
-  const addArticle = async (article) => {
-    await fetch("/api/articles", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(article),
-    });
-    loadArticles();
-  };
-
   // Filter articles by search
   searchBar.addEventListener("input", async () => {
     // Split the input by commas or spaces, and trim each query term
@@ -257,46 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("autogen").addEventListener("click", async () => {
     const articleSource = document.getElementById("articleSource").value;
-
-    try {
-      const tempArticle = {
-        title: "Temporary Article",
-        source: articleSource,
-        fileType: "URL",
-        status: "unread",
-      };
-
-      const response = await fetch("/api/articles", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(tempArticle),
-      });
-
-      const newArticle = await response.json();
-      const articleId = newArticle.id;
-
-      // Step 2: Fetch readability information
-      const readabilityResponse = await fetch(
-        `/articles/${articleId}/readability`,
-      );
-      const readabilityData = await readabilityResponse.json();
-
-      // Extract title and keywords
-      const title = readabilityData.title || "No title found";
-      const content = readabilityData.content || "";
-      const keywords = extractKeywords(content);
-      document.getElementById("articleTitle").value = title;
-      document.getElementById("articleTags").value = keywords.join(", ");
-
-      // Step 3: Delete the temporary article
-      await fetch(`/api/articles/${articleId}`, {
-        method: "DELETE",
-      });
-    } catch (error) {
-      console.error("Error during autogen process:", error);
-    }
+    getArticleInfo(articleSource);
   });
 
   loadArticles();

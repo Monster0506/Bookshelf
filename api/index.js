@@ -32,6 +32,7 @@ async function loadArticles() {
 
 async function deleteArticle(id) {
   const { data, error } = await supabase.from("articles").delete().eq("id", id);
+  console.log(data);
   if (error) {
     console.error("Error deleting article:", error);
     return false;
@@ -140,6 +141,7 @@ app.post("/api/articles", async (req, res) => {
 
   newArticle.read = readingTime(await getText(newArticle.source));
   articles.push(newArticle);
+  console.log(newArticle);
   saveArticles(articles);
 
   res.status(201).json(newArticle);
@@ -167,6 +169,21 @@ app.get("/api/articles/tags", async (req, res) => {
   }
 });
 
+app.get("/api/articles/readability", async (req, res) => {
+  const source = req.query.source;
+
+  if (!source) {
+    return res.status(400).json({ error: "Source URL is required" });
+  }
+
+  try {
+    const readabilityData = await getReadability(source);
+    res.json(readabilityData);
+  } catch (error) {
+    console.error("Error fetching readability:", error);
+    res.status(500).json({ error: "Failed to fetch readability data" });
+  }
+});
 app.put("/api/articles/:id", async (req, res) => {
   const articles = await loadArticles();
   const articleIndex = articles.findIndex(
@@ -269,6 +286,35 @@ app.get("/articles/:id/summary", async (req, res) => {
   saveArticles(articles);
   res.json(summary);
 });
+
+const populateDatalist = async () => {
+  const response = await fetch("/api/articles", {
+    method: "GET",
+  });
+  const articles = await response.json();
+  for (const article of articles) {
+    const option = document.createElement("option");
+    option.value = article.title;
+    datalist.appendChild(option);
+  }
+  populateDatalist2();
+};
+const populateDatalist2 = async () => {
+  const allTags = await fetch("/api/articles/tags", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  setTimeout(async () => {
+    const tags = await allTags.json();
+    for (const tag of tags) {
+      const option = document.createElement("option");
+      option.value = tag;
+      datalist.appendChild(option);
+    }
+  }, 1000);
+};
 
 async function getReadability(source) {
   const { data } = await axios.get(source);
