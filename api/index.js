@@ -1,5 +1,3 @@
-// server.js
-
 const express = require("express");
 const summarize = require("super-sum");
 const axios = require("axios");
@@ -12,13 +10,11 @@ const { Readability } = require("@mozilla/readability");
 const path = require("node:path");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
-const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 3861;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY; // Use service role key here
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.use(bodyParser.json());
@@ -27,34 +23,10 @@ app.use(express.static(path.join(__dirname, "../public")));
 const upload = multer({ storage: multer.memoryStorage() });
 const UPLOAD_BUCKET = "uploads";
 
-// Authentication Middleware
-const authenticateUser = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  const token = authHeader.split(" ")[1]; // Get the token from 'Bearer <token>'
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  try {
-    const user = jwt.verify(token, SUPABASE_JWT_SECRET);
-    req.user = user;
-    next();
-  } catch (error) {
-    console.error("Error verifying token:", error);
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-};
-
 // Utility functions
-async function loadArticles(user_id) {
-  const { data, error } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("user_id", user_id);
+async function loadArticles() {
+  const { data, error } = await supabase.from("articles").select("*");
   if (error) console.error("Error loading articles:", error);
-  console.log(data);
   return data || [];
 }
 
@@ -67,12 +39,11 @@ async function saveArticle(article) {
   return data;
 }
 
-async function deleteArticle(id, user_id) {
+async function deleteArticle() {
   const { data: article, error: fetchError } = await supabase
     .from("articles")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user_id)
     .single();
 
   if (fetchError) {
@@ -92,8 +63,7 @@ async function deleteArticle(id, user_id) {
   const { data: deleteData, error: deleteError } = await supabase
     .from("articles")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user_id);
+    .eq("id", id);
 
   if (deleteError) {
     console.error("Error deleting article from articles:", deleteError);
@@ -142,8 +112,8 @@ app.get("/uploads/:filename", async (req, res) => {
 });
 
 // Protected routes
-app.get("/api/articles", authenticateUser, async (req, res) => {
-  let articles = await loadArticles(req.user.sub);
+app.get("/api/articles", async (req, res) => {
+  let articles = await loadArticles();
   const { sort, archived, reverse } = req.query;
   if (sort) {
     articles.sort((b, a) =>
@@ -162,7 +132,7 @@ app.get("/api/articles", authenticateUser, async (req, res) => {
 
 app.post(
   "/api/articles/upload",
-  authenticateUser,
+
   upload.single("articleSource"),
   async (req, res) => {
     const { title } = req.body;
@@ -206,12 +176,11 @@ async function getText(source) {
   return { text, url: publicUrl };
 }
 
-app.post("/api/articles", authenticateUser, async (req, res) => {
+app.post("/api/articles", async (req, res) => {
   const newArticle = {
     ...req.body,
     id: generateID(),
     date: new Date().toISOString(),
-    user_id: req.user.sub,
   };
 
   const { text } = await getText(newArticle.source);
@@ -221,9 +190,9 @@ app.post("/api/articles", authenticateUser, async (req, res) => {
   res.status(201).json(newArticle);
 });
 
-app.get("/api/articles/tags", authenticateUser, async (req, res) => {
+app.get("/api/articles/tags", async (req, res) => {
   try {
-    const articles = await loadArticles(req.user.sub);
+    const articles = await loadArticles();
     if (!articles || articles.length === 0) {
       return res.status(404).json({ error: "No articles found" });
     }
@@ -243,7 +212,7 @@ app.get("/api/articles/tags", authenticateUser, async (req, res) => {
   }
 });
 
-app.get("/api/articles/readability", authenticateUser, async (req, res) => {
+app.get("/api/articles/readability", async (req, res) => {
   const source = req.query.source;
 
   if (!source) {
@@ -259,8 +228,8 @@ app.get("/api/articles/readability", authenticateUser, async (req, res) => {
   }
 });
 
-app.put("/api/articles/:id", authenticateUser, async (req, res) => {
-  const articles = await loadArticles(req.user.sub);
+app.put("/api/articles/:id", async (req, res) => {
+  const articles = await loadArticles();
   const articleIndex = articles.findIndex(
     (article) => article.id === req.params.id,
   );
@@ -268,7 +237,6 @@ app.put("/api/articles/:id", authenticateUser, async (req, res) => {
     const updatedArticle = {
       ...req.body,
       id: req.params.id,
-      user_id: req.user.sub,
     };
     await saveArticle(updatedArticle);
     res.json(updatedArticle);
@@ -277,23 +245,23 @@ app.put("/api/articles/:id", authenticateUser, async (req, res) => {
   }
 });
 
-app.get("/api/articles/:id", authenticateUser, async (req, res) => {
-  const articles = await loadArticles(req.user.sub);
+app.get("/api/articles/:id", async (req, res) => {
+  const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   article
     ? res.json(article)
     : res.status(404).json({ error: "Article not found" });
 });
 
-app.delete("/api/articles/:id", authenticateUser, async (req, res) => {
-  const result = await deleteArticle(req.params.id, req.user.sub);
+app.delete("/api/articles/:id", async (req, res) => {
+  const result = await deleteArticle(req.params.id);
   res.status(204).json(result);
 });
 
-app.get("/articles/:id/markdown", authenticateUser, async (req, res) => {
+app.get("/articles/:id/markdown", async (req, res) => {
   try {
     const { page = 1, pageSize = 10000 } = req.query;
-    const articles = await loadArticles(req.user.sub);
+    const articles = await loadArticles();
     const article = articles.find((article) => article.id === req.params.id);
 
     if (!article) return res.status(404).send("Article not found");
@@ -337,21 +305,21 @@ app.get("/articles/:id/markdown", authenticateUser, async (req, res) => {
   }
 });
 
-app.get("/articles/:id/readability", authenticateUser, async (req, res) => {
-  const articles = await loadArticles(req.user.sub);
+app.get("/articles/:id/readability", async (req, res) => {
+  const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   article
     ? res.json(await getReadability(article.source))
     : res.status(404).json({ error: "Article not found" });
 });
 
-app.get("/articles/:id/summary", authenticateUser, async (req, res) => {
+app.get("/articles/:id/summary", async (req, res) => {
   const sentences = Number(req.query.sentences) || 10;
-  const articles = await loadArticles(req.user.sub);
+  const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   let summary = article.summary;
   if (!article.summary) {
-    let item = await getReadability(article.source);
+    const item = await getReadability(article.source);
     let content = item.content;
     content = content.replace(/<\/?[^>]+>/gi, "");
 
