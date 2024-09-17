@@ -1,5 +1,3 @@
-// server.js
-
 const express = require("express");
 const summarize = require("super-sum");
 const axios = require("axios");
@@ -17,17 +15,10 @@ const jwt = require("jsonwebtoken");
 const app = express();
 const PORT = process.env.PORT || 3861;
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY; // Use service role key here
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "../public")));
-
-const upload = multer({ storage: multer.memoryStorage() });
-const UPLOAD_BUCKET = "uploads";
-
-// Authentication Middleware
 const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -47,32 +38,24 @@ const authenticateUser = (req, res, next) => {
   }
 };
 
-// Utility functions
-async function loadArticles(user_id) {
-  const { data, error } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("user_id", user_id);
-  if (error) console.error("Error loading articles:", error);
-  console.log(data);
-  return data || [];
-}
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, "../public")));
 
-async function saveArticle(article) {
-  const { data, error } = await supabase.from("articles").upsert(article);
-  if (error) {
-    console.error("Error saving article:", error);
-    return null;
-  }
+const upload = multer({ storage: multer.memoryStorage() });
+const UPLOAD_BUCKET = "uploads";
+
+// Utility functions
+async function loadArticles() {
+  const { data, error } = await supabase.from("articles").select("*");
+  if (error) console.error("Error loading articles:", error);
   return data;
 }
 
-async function deleteArticle(id, user_id) {
+async function deleteArticle(id) {
   const { data: article, error: fetchError } = await supabase
     .from("articles")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user_id)
     .single();
 
   if (fetchError) {
@@ -92,8 +75,7 @@ async function deleteArticle(id, user_id) {
   const { data: deleteData, error: deleteError } = await supabase
     .from("articles")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user_id);
+    .eq("id", id);
 
   if (deleteError) {
     console.error("Error deleting article from articles:", deleteError);
@@ -104,25 +86,23 @@ async function deleteArticle(id, user_id) {
   return trashData;
 }
 
+async function saveArticles(articles) {
+  const { data, error } = await supabase.from("articles").upsert(articles);
+  if (error) {
+    console.error("Error saving articles:", error);
+    return null;
+  }
+  return data;
+}
+
 function generateID() {
   const now = new Date();
-  return `${now
-    .toISOString()
-    .replace(/\D/g, "")
-    .slice(0, 17)}${Math.floor(100000 + Math.random() * 900000)}`;
+  return `${now.toISOString().replace(/\D/g, "").slice(0, 17)}${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
 // Routes
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "index.html"));
-});
-
-app.get("/login.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"));
-});
-
-app.get("/signup.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "signup.html"));
 });
 
 app.get("/articles/:id", (req, res) => {
@@ -141,9 +121,8 @@ app.get("/uploads/:filename", async (req, res) => {
   res.redirect(data.publicUrl);
 });
 
-// Protected routes
-app.get("/api/articles", authenticateUser, async (req, res) => {
-  let articles = await loadArticles(req.user.sub);
+app.get("/api/articles", async (req, res) => {
+  let articles = await loadArticles();
   const { sort, archived, reverse } = req.query;
   if (sort) {
     articles.sort((b, a) =>
@@ -162,7 +141,6 @@ app.get("/api/articles", authenticateUser, async (req, res) => {
 
 app.post(
   "/api/articles/upload",
-  authenticateUser,
   upload.single("articleSource"),
   async (req, res) => {
     const { title } = req.body;
@@ -179,18 +157,16 @@ app.post(
       return res.status(500).send("Error uploading file.");
     }
 
-    res.status(200).json({
-      message: "File uploaded successfully",
-      url: filename,
-      title,
-    });
+    res
+      .status(200)
+      .json({ message: "File uploaded successfully", url: filename, title });
   },
 );
 
 async function getText(source) {
   if (source.startsWith("http://") || source.startsWith("https://")) {
     const { data } = await axios.get(source);
-    return { text: cheerio.load(data)("body").text(), url: source };
+    return cheerio.load(data)("body").text();
   }
   const { data, error } = supabase.storage
     .from(UPLOAD_BUCKET)
@@ -202,28 +178,28 @@ async function getText(source) {
   if (error) throw new Error("Could not retrieve article content.");
 
   const response = await fetch(publicUrl);
-  const text = await response.text();
-  return { text, url: publicUrl };
+  const response2 = await response.blob();
+  return { text: await response2.text(), source: publicUrl };
 }
 
-app.post("/api/articles", authenticateUser, async (req, res) => {
+app.post("/api/articles", async (req, res) => {
+  const articles = await loadArticles();
   const newArticle = {
     ...req.body,
     id: generateID(),
     date: new Date().toISOString(),
-    user_id: req.user.sub,
   };
 
-  const { text } = await getText(newArticle.source);
-  newArticle.read = readingTime(text);
-  await saveArticle(newArticle);
+  newArticle.read = readingTime(await getText(newArticle.source).text);
+  articles.push(newArticle);
+  saveArticles(articles);
 
   res.status(201).json(newArticle);
 });
 
-app.get("/api/articles/tags", authenticateUser, async (req, res) => {
+app.get("/api/articles/tags", async (req, res) => {
   try {
-    const articles = await loadArticles(req.user.sub);
+    const articles = await loadArticles();
     if (!articles || articles.length === 0) {
       return res.status(404).json({ error: "No articles found" });
     }
@@ -243,7 +219,7 @@ app.get("/api/articles/tags", authenticateUser, async (req, res) => {
   }
 });
 
-app.get("/api/articles/readability", authenticateUser, async (req, res) => {
+app.get("/api/articles/readability", async (req, res) => {
   const source = req.query.source;
 
   if (!source) {
@@ -258,42 +234,39 @@ app.get("/api/articles/readability", authenticateUser, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch readability data" });
   }
 });
-
-app.put("/api/articles/:id", authenticateUser, async (req, res) => {
-  const articles = await loadArticles(req.user.sub);
+app.put("/api/articles/:id", async (req, res) => {
+  const articles = await loadArticles();
   const articleIndex = articles.findIndex(
     (article) => article.id === req.params.id,
   );
   if (articleIndex >= 0) {
-    const updatedArticle = {
-      ...req.body,
-      id: req.params.id,
-      user_id: req.user.sub,
-    };
-    await saveArticle(updatedArticle);
+    const updatedArticle = { ...req.body, id: req.params.id };
+    articles[articleIndex] = updatedArticle;
+    saveArticles(articles);
     res.json(updatedArticle);
   } else {
     res.status(404).json({ error: "Article not found" });
   }
 });
 
-app.get("/api/articles/:id", authenticateUser, async (req, res) => {
-  const articles = await loadArticles(req.user.sub);
+app.get("/api/articles/:id", async (req, res) => {
+  const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   article
     ? res.json(article)
     : res.status(404).json({ error: "Article not found" });
 });
 
-app.delete("/api/articles/:id", authenticateUser, async (req, res) => {
-  const result = await deleteArticle(req.params.id, req.user.sub);
+app.delete("/api/articles/:id", async (req, res) => {
+  const result = await deleteArticle(req.params.id);
   res.status(204).json(result);
 });
 
-app.get("/articles/:id/markdown", authenticateUser, async (req, res) => {
+app.get("/articles/:id/markdown", async (req, res) => {
   try {
+    // Parse page and pageSize from query parameters, defaulting to 1 and 10000 respectively
     const { page = 1, pageSize = 10000 } = req.query;
-    const articles = await loadArticles(req.user.sub);
+    const articles = await loadArticles();
     const article = articles.find((article) => article.id === req.params.id);
 
     if (!article) return res.status(404).send("Article not found");
@@ -313,7 +286,7 @@ app.get("/articles/:id/markdown", authenticateUser, async (req, res) => {
     }
 
     article.markdown = html;
-    await saveArticle(article);
+    saveArticles(articles);
 
     const currentPage = Number(page);
     const currentPageSize = Number(pageSize);
@@ -337,35 +310,72 @@ app.get("/articles/:id/markdown", authenticateUser, async (req, res) => {
   }
 });
 
-app.get("/articles/:id/readability", authenticateUser, async (req, res) => {
-  const articles = await loadArticles(req.user.sub);
+app.get("/articles/:id/readability", async (req, res) => {
+  const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   article
     ? res.json(await getReadability(article.source))
     : res.status(404).json({ error: "Article not found" });
 });
 
-app.get("/articles/:id/summary", authenticateUser, async (req, res) => {
+app.get("/articles/:id/summary", async (req, res) => {
   const sentences = Number(req.query.sentences) || 10;
-  const articles = await loadArticles(req.user.sub);
+  const articles = await loadArticles();
   const article = articles.find((article) => article.id === req.params.id);
   let summary = article.summary;
-  if (!article.summary) {
+  if (article.summary && !article.summary) {
+    summary = article.summary;
+  } else {
     let item = await getReadability(article.source);
-    let content = item.content;
+    console.log(item);
+    let a = item.content;
+    console.log("A: ", a);
+    let content = a;
     content = content.replace(/<\/?[^>]+>/gi, "");
 
     const abstract = summarize({ corpus: content, nSentences: sentences });
+    console.log(summary);
 
     summary = abstract.sentences;
   }
   article.summary = summary;
-  await saveArticle(article);
+  saveArticles(articles);
   res.json(summary);
 });
 
+const populateDatalist = async () => {
+  const response = await fetch("/api/articles", {
+    method: "GET",
+  });
+  const articles = await response.json();
+  for (const article of articles) {
+    const option = document.createElement("option");
+    option.value = article.title;
+    datalist.appendChild(option);
+  }
+  populateDatalist2();
+};
+const populateDatalist2 = async () => {
+  const allTags = await fetch("/api/articles/tags", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  setTimeout(async () => {
+    const tags = await allTags.json();
+    for (const tag of tags) {
+      const option = document.createElement("option");
+      option.value = tag;
+      datalist.appendChild(option);
+    }
+  }, 1000);
+};
+
 async function getReadability(source) {
+  console.log(source);
   const item = await getText(source);
+  console.log(item);
   const { text, url } = item;
 
   return new Readability(new JSDOM(text, { url: url }).window.document).parse();
@@ -378,5 +388,4 @@ app.get("/favicon.ico", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
-
 module.exports = app;
